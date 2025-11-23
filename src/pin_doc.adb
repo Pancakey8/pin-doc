@@ -1,40 +1,27 @@
-with Ada.Characters;
-with Ada.Characters.Wide_Latin_1;
-with Ada.Streams;
-with Ada.Streams.Stream_IO;
+with Ada.Command_Line;
 with Ada.Text_IO;
-with Ada.Wide_Characters;
-with Ada.Wide_Text_IO;
-with Document_Format; use Document_Format;
-with HTML_Visitor;
+with Cli_Run_File;
 
 procedure Pin_Doc is
-   use Ada.Wide_Text_IO;
-   Input    : UB_Wide_Str;
-   Cursor   : Positive := 1;
-   Document : Vec_Node.Vector;
-   S : HTML_Visitor.File_Access := new File_Type'(Standard_Output);
-   V : HTML_Visitor.Visitor := (Output => S, others => <>);
 begin
-   Ada.Text_IO.Put_Line ("Type \EOF to finalise.");
-   loop
-      declare
-         Line : constant Wide_String := Get_Line;
-      begin
-         if Line = "\EOF" then
-            exit;
+   if Ada.Command_Line.Argument_Count = 0
+     or else Ada.Command_Line.Argument (1) = "help"
+   then
+      Ada.Text_IO.Put_Line ("Usage: pin-doc <command> [args]");
+      Ada.Text_IO.Put_Line ("Commands:");
+      Ada.Text_IO.Put_Line ("    eval [document]");
+      Ada.Text_IO.Put_Line ("    => Generates HTML output for ~document~.");
+      Ada.Text_IO.Put_Line
+        ("    => Omit ~document~ to run immediate mode (REPL)");
+   else
+      if Ada.Command_Line.Argument (1) = "eval" then
+         if Ada.Command_Line.Argument_Count = 1 then
+            Cli_Run_File.Evaluate_File;
+         elsif Ada.Command_Line.Argument_Count = 2 then
+            Cli_Run_File.Evaluate_File (Ada.Command_Line.Argument (2));
+         else
+            Ada.Text_IO.Put_Line ("Wrong number of parameters. See ~help~.");
          end if;
-         UB_Wide.Append (Input, Line);
-         UB_Wide.Append (Input, Ada.Characters.Wide_Latin_1.LF);
-      end;
-   end loop;
-   Document :=
-     Document_Format.Parse_All (UB_Wide.To_Wide_String (Input), Cursor);
-   for Node of Document loop
-      declare
-         N : Document_Format.Node'Class renames Node;
-      begin
-         HTML_Visitor.Visit (V, N);
-      end;
-   end loop;
+      end if;
+   end if;
 end Pin_Doc;
