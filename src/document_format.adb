@@ -108,6 +108,18 @@ package body Document_Format is
       end;
    end Parse_Rich_Text;
 
+   function Begin_Newline
+     (Input : U16_Str; Cursor : in out Positive) return Boolean is
+   begin
+      if Cursor /= 1 then
+         if not Is_Newline (Peek (Input, Cursor)) then
+            return False;
+         end if;
+         Pop (Input, Cursor);
+      end if;
+      return True;
+   end Begin_Newline;
+
    function Parse_Header
      (Input : U16_Str; Cursor : in out Positive; Header : out Header_Text)
       return Boolean
@@ -115,11 +127,8 @@ package body Document_Format is
       Level : Header_Level;
       Start : constant Positive := Cursor;
    begin
-      if Cursor /= 1 then
-         if not Is_Newline (Peek (Input, Cursor)) then
-            return False;
-         end if;
-         Pop (Input, Cursor);
+      if not Begin_Newline (Input, Cursor) then
+         return False;
       end if;
 
       if Matches (Input, Cursor, "###") then
@@ -158,31 +167,40 @@ package body Document_Format is
      (Input : U16_Str; Cursor : in out Positive) return Vec_Node.Vector
    is
       Nodes : Vec_Node.Vector;
-   begin
-      while Peek (Input, Cursor) /= Null_Char loop
+      function Try_Newline return Boolean is
+      begin
          declare
             Header : Header_Text;
          begin
             if Parse_Header (Input, Cursor, Header) then
                Nodes.Append (Header);
-            else
-               if Is_Newline (Peek (Input, Cursor)) then
-                  Pop (Input, Cursor);
-                  if Is_Newline (Peek (Input, Cursor)) then
-                     -- Allow semantic newline
-                     Nodes.Append (Line_Break'(null record));
-                  else
-                     Nodes.Append
-                       (Rich_Text'
-                          (Format  => [Plain => True, others => False],
-                           Content => UB_Wide.To_Unbounded_Wide_String (" ")));
-                  end if;
-               end if;
-               for Node of Parse_Rich_Text (Input, Cursor) loop
-                  Nodes.Append (Node);
-               end loop;
+               return True;
             end if;
          end;
+         if Parse_Comment (Input, Cursor) then
+            return True;
+         end if;
+         return False;
+      end Try_Newline;
+   begin
+      while Peek (Input, Cursor) /= Null_Char loop
+         if not Try_Newline then
+            if Is_Newline (Peek (Input, Cursor)) then
+               Pop (Input, Cursor);
+               if Is_Newline (Peek (Input, Cursor)) then
+                  -- Allow semantic newline
+                  Nodes.Append (Line_Break'(null record));
+               else
+                  Nodes.Append
+                    (Rich_Text'
+                       (Format  => [Plain => True, others => False],
+                        Content => UB_Wide.To_Unbounded_Wide_String (" ")));
+               end if;
+            end if;
+            for Node of Parse_Rich_Text (Input, Cursor) loop
+               Nodes.Append (Node);
+            end loop;
+         end if;
       end loop;
       Nodes.Append (Line_Break'(null record));
       return Nodes;
@@ -213,4 +231,33 @@ package body Document_Format is
    begin
       Ada.Text_IO.Put_Line ("Line Break");
    end Print_Node;
+
+   function Parse_Comment
+     (Input : U16_Str; Cursor : in out Positive) return Boolean
+   is
+      Start : constant Positive := Cursor;
+   begin
+      if not Begin_Newline (Input, Cursor) then
+         return False;
+      end if;
+      if not Matches (Input, Cursor, "::") then
+         Cursor := Start;
+         return False;
+      end if;
+      loop
+         declare
+            P : constant Wide_Character := Peek (Input, Cursor);
+         begin
+            if P = Null_Char then
+               exit;
+            end if;
+            if Is_Newline (P) then
+               Pop (Input, Cursor);
+               exit;
+            end if;
+            Pop (Input, Cursor);
+         end;
+      end loop;
+      return True;
+   end Parse_Comment;
 end Document_Format;

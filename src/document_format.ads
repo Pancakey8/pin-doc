@@ -51,6 +51,10 @@ package Document_Format is
      (Input : U16_Str; Cursor : in out Positive; Header : out Header_Text)
       return Boolean;
 
+   function Parse_Comment
+     (Input : U16_Str; Cursor : in out Positive)
+      return Boolean;
+
    package Vec_Node is new
      Ada.Containers.Indefinite_Vectors (Positive, Node'Class);
 
