@@ -8,27 +8,19 @@ with HTML_Visitor;
 package body Cli_Run_File is
    procedure Output_File (Input : Document_Format.UB_Wide_Str) is
       use Document_Format;
-      Document : Vec_Node.Vector;
-      Cursor   : Positive := 1;
-      V        : HTML_Visitor.Visitor :=
-        (Output =>
-           new Ada.Wide_Text_IO.File_Type'(Ada.Wide_Text_IO.Standard_Output),
-         others => <>);
+      Doc    : Document;
+      Cursor : Positive := 1;
+      F      : HTML_Visitor.File_Access :=
+        new Ada.Wide_Text_IO.File_Type'(Ada.Wide_Text_IO.Standard_Output);
       procedure Dealloc_File_Type is new
         Ada.Unchecked_Deallocation
           (Object => Ada.Wide_Text_IO.File_Type,
            Name   => HTML_Visitor.File_Access);
    begin
-      Document :=
+      Doc :=
         Document_Format.Parse_All (UB_Wide.To_Wide_String (Input), Cursor);
-      for Node of Document loop
-         declare
-            N : Document_Format.Node'Class renames Node;
-         begin
-            HTML_Visitor.Visit (V, N);
-         end;
-      end loop;
-      Dealloc_File_Type (V.Output);
+      HTML_Visitor.Make_Document (F, Doc);
+      Dealloc_File_Type (F);
    end Output_File;
 
    procedure Evaluate_File is

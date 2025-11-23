@@ -1,9 +1,10 @@
 with Ada.Containers;
+with Ada.Containers.Hashed_Maps;
 with Ada.Containers.Indefinite_Vectors;
 with Ada.Containers.Vectors;
 with Ada.Strings.UTF_Encoding;
-with Ada.Strings.UTF_Encoding.Wide_Strings;
 with Ada.Strings.Wide_Unbounded;
+with Ada.Strings.Wide_Unbounded.Wide_Hash;
 
 package Document_Format is
    package UB_Wide renames Ada.Strings.Wide_Unbounded;
@@ -52,12 +53,27 @@ package Document_Format is
       return Boolean;
 
    function Parse_Comment
-     (Input : U16_Str; Cursor : in out Positive)
-      return Boolean;
+     (Input : U16_Str; Cursor : in out Positive) return Boolean;
 
    package Vec_Node is new
      Ada.Containers.Indefinite_Vectors (Positive, Node'Class);
+   function Equiv (A, B : UB_Wide_Str) return Boolean;
+   package Map_Meta is new
+     Ada.Containers.Hashed_Maps
+       (Key_Type        => UB_Wide_Str,
+        Element_Type    => UB_Wide_Str,
+        Hash            => UB_Wide.Wide_Hash,
+        Equivalent_Keys => Equiv,
+        "="             => Equiv);
+
+   type Document is record
+      Nodes : Vec_Node.Vector;
+      Meta  : Map_Meta.Map;
+   end record;
+
+   procedure Parse_Meta
+     (Input : U16_Str; Cursor : in out Positive; Meta : out Map_Meta.Map);
 
    function Parse_All
-     (Input : U16_Str; Cursor : in out Positive) return Vec_Node.Vector;
+     (Input : U16_Str; Cursor : in out Positive) return Document;
 end Document_Format;

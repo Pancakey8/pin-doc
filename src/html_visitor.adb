@@ -1,3 +1,4 @@
+with Ada.Strings.Wide_Unbounded;
 with Document_Format; use Document_Format;
 with Ada.Tags;        use Ada.Tags;
 
@@ -95,4 +96,42 @@ package body HTML_Visitor is
       end if;
       WIO.Put_Line (V.Output.all, "<br>");
    end Visit_Line_Break;
+
+   procedure Make_Doc_Begin (Output : File_Access; Doc : Document) is
+      Title_Key : constant UB_Wide_Str :=
+        UB_Wide.To_Unbounded_Wide_String ("title");
+   begin
+      WIO.Put_Line (Output.all, "<!DOCTYPE html>");
+      WIO.Put_Line (Output.all, "<head>");
+      if Doc.Meta.Contains (Title_Key) then
+         WIO.Put (Output.all, "<title>");
+         WIO.Put
+           (Output.all, UB_Wide.To_Wide_String (Doc.Meta.Element (Title_Key)));
+         WIO.Put_Line (Output.all, "</title>");
+      end if;
+      WIO.Put_Line (Output.all, "</head>");
+      WIO.Put_Line (Output.all, "<body>");
+   end Make_Doc_Begin;
+
+   procedure Make_Doc_End (Output : File_Access) is
+   begin
+      WIO.Put_Line (Output.all, "</body>");
+      WIO.Put_Line (Output.all, "</html>");
+   end Make_Doc_End;
+
+   procedure Make_Document
+     (Output : File_Access; Doc : Document_Format.Document)
+   is
+      V : Visitor := (Output => Output, others => <>);
+   begin
+      Make_Doc_Begin (Output, Doc);
+      for Node of Doc.Nodes loop
+         declare
+            N : Document_Format.Node'Class renames Node;
+         begin
+            HTML_Visitor.Visit (V, N);
+         end;
+      end loop;
+      Make_Doc_End (Output);
+   end Make_Document;
 end HTML_Visitor;

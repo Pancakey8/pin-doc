@@ -1,4 +1,6 @@
 with Ada.Characters;
+with Ada.Strings.Search;
+with Ada.Strings.Wide_Fixed;
 with Ada.Text_IO;
 with Ada.Wide_Characters;
 with Ada.Wide_Characters.Unicode;
@@ -164,9 +166,10 @@ package body Document_Format is
    end Parse_Header;
 
    function Parse_All
-     (Input : U16_Str; Cursor : in out Positive) return Vec_Node.Vector
+     (Input : U16_Str; Cursor : in out Positive) return Document
    is
       Nodes : Vec_Node.Vector;
+      Meta  : Map_Meta.Map;
       function Try_Newline return Boolean is
       begin
          declare
@@ -183,6 +186,9 @@ package body Document_Format is
          return False;
       end Try_Newline;
    begin
+      if Cursor = 1 then
+         Parse_Meta (Input, Cursor, Meta);
+      end if;
       while Peek (Input, Cursor) /= Null_Char loop
          if not Try_Newline then
             if Is_Newline (Peek (Input, Cursor)) then
@@ -203,7 +209,7 @@ package body Document_Format is
          end if;
       end loop;
       Nodes.Append (Line_Break'(null record));
-      return Nodes;
+      return (Nodes, Meta);
    end Parse_All;
 
    overriding
@@ -260,4 +266,51 @@ package body Document_Format is
       end loop;
       return True;
    end Parse_Comment;
+
+   function Equiv (A, B : UB_Wide_Str) return Boolean is
+      use UB_Wide;
+   begin
+      return A = B;
+   end Equiv;
+
+   function Is_Space (C : Wide_Character) return Boolean
+   renames Ada.Wide_Characters.Unicode.Is_Space;
+
+   procedure Parse_Meta
+     (Input : U16_Str; Cursor : in out Positive; Meta : out Map_Meta.Map)
+   is
+      Separator : constant Wide_String := "---";
+      Meta_End  : constant Natural :=
+        Ada.Strings.Wide_Fixed.Index (Input, Separator);
+      procedure Add_KV is
+         Is_First   : Boolean := True;
+         Key, Value : UB_Wide_Str;
+      begin
+         while not Is_Newline (Peek (Input, Cursor)) loop
+            if Is_First and then not Is_Space (Peek (Input, Cursor)) then
+               if Peek (Input, Cursor) = ':' then
+                  Is_First := False;
+               else
+                  UB_Wide.Append (Key, Peek (Input, Cursor));
+               end if;
+            elsif not Is_First then
+               UB_Wide.Append (Value, Peek (Input, Cursor));
+            end if;
+            Pop (Input, Cursor);
+         end loop;
+         Pop (Input, Cursor);
+         -- Ada.Wide_Text_IO.Put (UB_Wide.To_Wide_String (Key));
+         -- Ada.Wide_Text_IO.Put (":");
+         -- Ada.Wide_Text_IO.Put_Line (UB_Wide.To_Wide_String (Value));
+         Meta.Insert (Key, Value);
+      end Add_KV;
+   begin
+      if Meta_End = 0 then
+         return;
+      end if;
+      while Cursor < Meta_End loop
+         Add_KV;
+      end loop;
+      Pop_N (Input, Cursor, Separator'Length);
+   end Parse_Meta;
 end Document_Format;

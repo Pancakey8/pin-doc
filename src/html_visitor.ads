@@ -6,7 +6,7 @@ package HTML_Visitor is
    package WIO renames Ada.Wide_Text_IO;
    type File_Access is access all WIO.File_Type;
    type Visitor is record
-      Output : File_Access;
+      Output       : File_Access;
       In_Paragraph : Boolean := False;
    end record;
 
@@ -18,4 +18,7 @@ package HTML_Visitor is
      (V : in out Visitor; Node : Document_Format.Header_Text);
    procedure Visit_Line_Break
      (V : in out Visitor; Node : Document_Format.Line_Break);
+
+   procedure Make_Document
+     (Output : File_Access; Doc : Document_Format.Document);
 end HTML_Visitor;
